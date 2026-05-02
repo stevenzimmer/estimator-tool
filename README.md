@@ -79,6 +79,87 @@ The template should be populated from the new bid workspace plus relevant contex
 - Cost normalization, quantity takeoff, production rates, and schedule logic are placeholders until more historical bids are added.
 - The tool does not call an LLM yet. It creates structured context that an agent can use reliably.
 
+## Evaluation Strategy
+
+Evals should be used to measure whether the estimator is accurate, complete, traceable, and customer-ready. They are especially important because bid outputs can look polished while still missing scope, misreading exclusions, or making unsupported assumptions.
+
+Useful eval categories:
+
+- Document extraction accuracy: verifies scope, exclusions, rates, quantities, schedule constraints, geotech risks, and environmental requirements.
+- Scope completeness: checks whether all major work areas from the bid package are represented.
+- Cost traceability: confirms each estimate line ties back to a source document, workbook tab, rate sheet, historical bid, or explicit assumption.
+- Assumption quality: ensures assumptions are clear, reasonable, and separated from known facts.
+- Exclusion and risk detection: checks for high-risk items such as dewatering, rock, unsuitable soils, hazardous materials, survey, inspection fees, environmental mitigation, water availability, and schedule compression.
+- Final bid quality: verifies that generated estimates follow `final_estimate_template.md` and are understandable to the customer.
+
+Start with Libra as the first gold-standard eval. Create small expected-answer files based on known bid facts, then compare future agent outputs against them.
+
+Suggested structure:
+
+```text
+evals/
+  libra/
+    expected-scope.md
+    expected-exclusions.md
+    expected-risks.md
+    expected-final-bid-checklist.md
+    scoring-rubric.md
+```
+
+Recommended workflow:
+
+1. Add a completed bid to `past-bids/`.
+2. Create expected-answer files for scope, exclusions, risks, rates, and final-bid requirements.
+3. Run the estimator workflow.
+4. Score missing items, incorrect claims, unsupported costs, weak assumptions, and unclear customer-facing language.
+5. Save recurring failures or lessons learned into `knowledge-base/`.
+
+## MCP Integration Opportunities
+
+Model Context Protocol servers can improve this tool by giving the estimator agent controlled access to documents, spreadsheets, databases, search indexes, storage, and future estimating systems. MCPs should be added where they improve extraction, traceability, or workflow automation without broadening access to unrelated files.
+
+Recommended MCPs to configure or consider:
+
+| MCP | Why It Helps |
+| --- | --- |
+| Filesystem | Reads and writes bid workspaces, templates, eval files, and generated estimates. This is the core integration for this repo. |
+| PDF / document extraction | Extracts text, tables, drawing notes, schedules, geotech findings, and environmental constraints from PDFs. This is the biggest current gap. |
+| Spreadsheet / Excel | Inspects estimate workbooks, formulas, named ranges, summary tabs, quantities, rates, and scope-to-cost mappings. |
+| Database / SQLite / Postgres | Stores historical bid metadata, extracted quantities, rates, risk patterns, eval results, and comparable-project data. |
+| Vector search / embeddings | Retrieves relevant past bid context, exclusions, production assumptions, and lessons learned from `knowledge-base/` and completed bids. |
+| GitHub | Tracks changes, manages issues, reviews PRs, and maintains workflows, templates, skills, and evals. |
+| Browser / Playwright | Supports future bid portal workflows, source-file download checks, online spec review, and UI testing. |
+| Cloud storage | Connects to Google Drive, SharePoint, Dropbox, Box, or OneDrive when bid packages live outside the repo. |
+| Email / calendar | Captures bid invites, due dates, addenda notices, RFI responses, and customer communications. |
+| OCR / vision | Extracts information from scanned PDFs, drawing images, site plans, screenshots, and non-text tables. |
+| Estimating / accounting systems | Connects future workflows to cost codes, historical actuals, equipment rates, labor rates, vendor quotes, and closeout data. |
+
+Priority order:
+
+1. PDF / document extraction.
+2. Spreadsheet / Excel.
+3. Database.
+4. Vector search / embeddings.
+5. Cloud storage.
+
+Suggested architecture:
+
+```text
+past-bids/ + new-bids/
+        ↓
+filesystem MCP
+        ↓
+PDF + spreadsheet extraction MCPs
+        ↓
+database / vector search MCP
+        ↓
+estimator agent
+        ↓
+final_estimate_template.md + evals
+```
+
+Security note: configure MCPs with narrow access boundaries. Any MCP touching bid packages should be limited to the required folders and should treat bid documents, rates, customer scopes, and generated estimates as confidential.
+
 ## Recommended Skill Additions
 
 No matching public skills were found for `document processing`, `pdf`, `spreadsheet`, or `proposal writing` using `npx skills find`. The best next step is to create custom skills tailored to this estimator.
